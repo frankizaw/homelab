@@ -5,75 +5,81 @@
 ---
 
 <a name="english"></a>
-## English Version
+## English
 
-A lightweight, repeatable, dual-mode security testing environment designed for **Purple Teaming**, log analysis, attack simulation, and evasion testing.
+A lightweight, practical cybersecurity testbed built for hands-on Purple Teaming, web log analysis, and detection rule evaluation (designed to pair with the `log-sentry` project).
 
-Created as a practical training environment for detection engineering and security monitoring (e.g. with Log-Sentry).
+The goal of this project is to observe how common web attack vectors appear in web server access logs, and to evaluate how effectively evasion techniques bypass simple signature-based detection rules.
 
 ---
 
-### Architecture Overview
+### Architecture & Traffic Flow
 
 ```text
-       [ RED TEAM / ATTACKER ]
-   (curl, Python runner, exploits)
+       [ ATTACKER / RED TEAM ]
+    (curl, Python exploit runner)
                  │
                  ▼ HTTP Traffic
        ┌───────────────────┐
-       │   REVERSE PROXY   │  Nginx / Standalone Logger:
+       │   REVERSE PROXY   │  Nginx (or built-in Python logger):
        │      (Nginx)      │  Captures all requests into access.log
        └─────────┬─────────┘  (Standard Combined Log Format)
                  │
                  ▼ Proxy forwarding
        ┌───────────────────┐
-       │  VULNERABLE APP   │  Simulated target with intentional flaws
-       │  (Target Service) │  (SQLi, Directory Traversal, Reflected XSS)
+       │  VULNERABLE APP   │  Target service with intentional flaws:
+       │  (Target Service) │  SQLi, Directory Traversal, Reflected XSS
        └───────────────────┘
                  │
                  ▼ Shared logs/access.log
        ┌───────────────────┐
-       │ BLUE TEAM / SIEM  │  Detection Engine (e.g. log-sentry)
-       │    (Log-Sentry)   │  Analyzes log stream in real time
+       │ BLUE TEAM / SIEM  │  Detection tool (log-sentry)
+       │    (Log-Sentry)   │  Analyzes log stream to catch suspicious requests
        └───────────────────┘
 ```
 
 ---
 
-### Quick Start
+### Dual-Mode Execution
 
-The homelab supports **Dual-Mode**:
-1. **Containerized (Docker Compose)**: For production-like isolation (`compose.yaml`).
-2. **Native Zero-Dependency (Python)**: Runs out of the box with zero external dependencies and no root permissions required.
+The lab supports two operational modes:
+1. **Docker Compose Mode**: Runs Nginx as a reverse proxy and the vulnerable application in isolated containers (`compose.yaml`).
+2. **Native Python Mode (Zero Dependencies)**: Fallback for environments without Docker. Runs directly using the Python 3 standard library, requiring no third-party packages and no root privileges.
 
-#### 1. Start the Lab
+---
+
+### Quick Start / Usage
+
+The `lab.sh` script provides a unified CLI for managing the environment:
+
+#### 1. Start the lab
 ```bash
 ./lab.sh start
 ```
-*The script automatically detects if Docker is active; if not, it launches the native target server on `http://localhost:8080`.*
+*Automatically checks for Docker. If Docker is running, it deploys containers via Compose; otherwise, it starts the native Python server on port 8080.*
 
-#### 2. Check Lab Status
+#### 2. Check status
 ```bash
 ./lab.sh status
 ```
 
-#### 3. Run Simulated Red Team Attacks
+#### 3. Run attack simulations
 ```bash
-# Run both standard (blatant) attacks and evasion/obfuscation payloads
+# Run all test scenarios (both standard and evasion payloads)
 ./lab.sh attack all
 
-# Or run specific test sets:
+# Or run specific categories:
 ./lab.sh attack blatant
 ./lab.sh attack evasion
 ```
 
-#### 4. Run Detection Analysis
+#### 4. Analyze detections with log-sentry
 ```bash
 ./lab.sh analyze
 ```
-*Directly feeds the lab's `logs/access.log` into `log-sentry` to check detection rates.*
+*Feeds `logs/access.log` into the `log-sentry` analyzer to verify detection rates and identify bypassed rules.*
 
-#### 5. Stop the Lab
+#### 5. Stop the lab
 ```bash
 ./lab.sh stop
 ```
@@ -84,117 +90,123 @@ The homelab supports **Dual-Mode**:
 
 ```text
 homelab/
-├── compose.yaml                # Container environment definition (Nginx + Target App)
-├── lab.sh                      # Unified management CLI
-├── LAB_SCENARIOS.md            # Purple Team lab scenarios & evasion exercises
+├── compose.yaml                # Docker Compose environment definition (Nginx + Target App)
+├── lab.sh                      # Management CLI script
+├── LAB_SCENARIOS.md            # Purple Team scenarios & evasion exercise guide
 ├── README.md                   # Project documentation
 │
 ├── proxy/
-│   └── nginx.conf              # Production Nginx reverse proxy configuration
+│   └── nginx.conf              # Nginx reverse proxy configuration (Combined log format)
 │
 ├── targets/
-│   └── vulnerable-app/         # Vulnerable web target
-│       ├── app.py              # Zero-dependency Python target application
+│   └── vulnerable-app/         # Vulnerable web target application
+│       ├── app.py              # Zero-dependency Python web application
 │       ├── Dockerfile          # Container packaging
-│       └── requirements.txt    # Dependencies (standard library)
+│       └── requirements.txt    # Standard library only
 │
-├── attacks/                    # Red Team attack module
-│   ├── exploit_runner.py       # Automated attack execution runner
-│   └── payloads.json           # Curated test payloads (Blatant vs Evasion)
+├── attacks/                    # Red Team attack simulation module
+│   ├── exploit_runner.py       # Automated attack runner script
+│   └── payloads.json           # Curated test payloads (blatant vs evasion)
 │
 └── logs/                       # Shared access log directory
-    └── access.log              # Nginx Combined Log format stream
+    └── access.log              # Log stream parsed by Blue Team detection
 ```
 
 ---
 
-### Evasion & Detection Scenarios
+### Test Scenarios & Coverage
 
-See [**`LAB_SCENARIOS.md`**](LAB_SCENARIOS.md) for step-by-step walkthroughs of:
-- **SQL Injection**: Plain `UNION SELECT` vs `/**/` comment obfuscation.
-- **Directory Traversal**: Plain `../../` vs Single & Double URL Encoding (`%2e%2e%2f`).
-- **Cross-Site Scripting (XSS)**: Plain `<script>` tags vs SVG/Body event handlers (`<svg/onload=alert(1)>`).
-- **Reconnaissance**: Sensitive file discovery (`.env`, `.git/config`, `phpmyadmin`).
-- **User-Agent Fingerprinting**: Detecting tools like `sqlmap`, `nikto`, `gobuster`.
+Detailed walkthroughs, payload examples, and evasion mechanics are documented in [**`LAB_SCENARIOS.md`**](LAB_SCENARIOS.md):
+- **SQL Injection**: Standard `UNION SELECT` vs obfuscation using inline SQL comments (`/**/`).
+- **Directory Traversal**: Plain `../../` vs single (`%2f`) and double (`%252e`) URL encoding.
+- **Cross-Site Scripting (XSS)**: Classic `<script>` tags vs event handlers in SVG and Body tags (`<svg/onload=alert(1)>`).
+- **Reconnaissance**: Probing sensitive paths (`.env`, `.git/config`, `phpmyadmin`).
+- **User-Agent Fingerprinting**: Identifying automated security tools (e.g. `sqlmap`) via HTTP headers.
 
 ---
 
-### Disclaimer
+### Security Disclaimer
 
-This laboratory is intended solely for educational purposes, defensive security research, and detection rule development. Do not use these attack techniques against systems without explicit prior authorization.
+This project is intended strictly for educational purposes, defensive security research, and detection rule development in a controlled lab environment. Do not use these attack tools or payloads against systems without explicit authorization.
 
 ---
 
 <a name="polski"></a>
-## Wersja Polska (Polish Version)
+## Wersja Polska
 
-Lekkie, powtarzalne środowisko testowe bezpieczeństwa w trybie dwutrybowym (Dual-Mode), zaprojektowane z myślą o ćwiczeniach **Purple Teaming**, analizie logów, symulacji ataków oraz testowaniu technik omijania systemów detekcji (evasion).
+Lokalne środowisko testowe typu Lab-as-Code stworzone do praktycznej nauki Purple Teamingu, analizy logów serwerowych oraz testowania skuteczności reguł detekcji (zaprojektowane do współpracy z narzędziem `log-sentry`).
 
-Stworzone jako praktyczny poligon szkoleniowy dla inżynierii detekcji (Detection Engineering) i monitorowania bezpieczeństwa (np. przy użyciu Log-Sentry).
+Głównym celem projektu jest obserwacja, w jaki sposób typowe ataki webowe zapisują się w logach serwera Nginx oraz badanie, na ile techniki zaciemniania zapytań (evasion) pozwalają ominąć proste reguły detekcyjne oparte na wyrażeniach regularnych.
 
 ---
 
-### Przegląd architektury
+### Architektura i przepływ ruchu
 
 ```text
-       [ RED TEAM / ATAKUJĄCY ]
-   (curl, skrypt w Pythonie, exploity)
+       [ ATAKUJĄCY / RED TEAM ]
+    (curl, skrypt exploit_runner)
                  │
                  ▼ Ruch HTTP
        ┌───────────────────┐
-       │   REVERSE PROXY   │  Nginx / Wbudowany rejestrator logów:
+       │   REVERSE PROXY   │  Nginx (lub wbudowany logger w Pythonie):
        │      (Nginx)      │  Zapisuje wszystkie żądania do access.log
-       └─────────┬─────────┘  (Format Nginx Combined Log)
+       └─────────┬─────────┘  (standardowy format Combined Log)
                  │
                  ▼ Przekazywanie żądań (Proxy)
        ┌───────────────────┐
-       │ PODATNA APLIKACJA │  Symulowany cel z celowo wprowadzonymi lukami
-       │ (Target Service)  │  (SQLi, Directory Traversal, Reflected XSS)
+       │ PODATNA APLIKACJA │  Aplikacja docelowa ze świadomymi lukami:
+       │ (Target Service)  │  SQLi, Directory Traversal, Reflected XSS
        └───────────────────┘
                  │
                  ▼ Współdzielony plik logs/access.log
        ┌───────────────────┐
-       │ BLUE TEAM / SIEM  │  Silnik detekcji (np. log-sentry)
-       │   (Log-Sentry)    │  Analizuje strumień logów w czasie rzeczywistym
+       │ BLUE TEAM / SIEM  │  Narzędzie detekcyjne (log-sentry)
+       │   (Log-Sentry)    │  Analizuje logi i identyfikuje podejrzane żądania
        └───────────────────┘
 ```
 
 ---
 
-### Szybki start
+### Dwa tryby uruchomienia (Dual-Mode)
 
-Homelab obsługuje **tryb dwutrybowy (Dual-Mode)**:
-1. **Kontenerowy (Docker Compose)**: Zapewnia produkcyjną izolację usług (`compose.yaml`).
-2. **Natywny bez zależności (Python)**: Działa od razu po pobraniu, nie wymaga zewnętrznych bibliotek ani uprawnień roota.
+Środowisko obsługuje dwa tryby działania:
+1. **Tryb Docker Compose**: Uruchamia proxy Nginx oraz podatną aplikację w odizolowanych kontenerach (`compose.yaml`).
+2. **Tryb natywny (Python bez zależności)**: Rozwiązanie zapasowe dla środowisk bez zainstalowanego Dockera. Aplikacja działa w oparciu o bibliotekę standardową Pythona 3 – nie wymaga zewnętrznych pakietów z `pip` ani uprawnień roota.
 
-#### 1. Uruchomienie laboratorium
+---
+
+### Instrukcja uruchomienia
+
+Zarządzanie środowiskiem odbywa się za pomocą skryptu pomocniczego `lab.sh`:
+
+#### 1. Uruchomienie środowiska
 ```bash
 ./lab.sh start
 ```
-*Skrypt automatycznie wykrywa obecność Dockera; jeśli Docker nie jest aktywny, uruchamia natywny serwer w Pythonie pod adresem `http://localhost:8080`.*
+*Skrypt automatycznie sprawdza obecność i działanie Dockera. Jeśli usługa jest aktywna, uruchamia kontenery; w przeciwnym razie startuje serwer natywny na porcie 8080.*
 
-#### 2. Sprawdzenie statusu laboratorium
+#### 2. Sprawdzenie statusu
 ```bash
 ./lab.sh status
 ```
 
-#### 3. Wykonanie symulacji ataków Red Team
+#### 3. Uruchomienie symulacji ataków
 ```bash
-# Uruchomienie wszystkich ataków: jawnych (blatant) oraz zaciemnionych (evasion)
+# Wykonanie wszystkich scenariuszy (jawne oraz z technikami evasion)
 ./lab.sh attack all
 
-# Lub uruchomienie wybranego zestawu testów:
+# Uruchomienie wybranej kategorii:
 ./lab.sh attack blatant
 ./lab.sh attack evasion
 ```
 
-#### 4. Uruchomienie analizy detekcji
+#### 4. Weryfikacja detekcji w log-sentry
 ```bash
 ./lab.sh analyze
 ```
-*Przekazuje plik `logs/access.log` bezpośrednio do `log-sentry`, weryfikując skuteczność wykrywania ataków.*
+*Przekazuje plik `logs/access.log` do analizatora `log-sentry`, weryfikując skuteczność reguł i wskazując zapytania, które ominęły filtry.*
 
-#### 5. Zatrzymanie laboratorium
+#### 5. Zatrzymanie środowiska
 ```bash
 ./lab.sh stop
 ```
@@ -205,41 +217,41 @@ Homelab obsługuje **tryb dwutrybowy (Dual-Mode)**:
 
 ```text
 homelab/
-├── compose.yaml                # Definicja środowiska kontenerowego (Nginx + Podatna aplikacja)
-├── lab.sh                      # Zunifikowany skrypt zarządzający (CLI)
-├── LAB_SCENARIOS.md            # Scenariusze Purple Team i ćwiczenia z omijania detekcji
+├── compose.yaml                # Konfiguracja środowiska kontenerowego (Nginx + Aplikacja)
+├── lab.sh                      # Skrypt CLI do zarządzania laboratorium
+├── LAB_SCENARIOS.md            # Przewodnik po scenariuszach ataków i omijania detekcji
 ├── README.md                   # Dokumentacja projektu
 │
 ├── proxy/
-│   └── nginx.conf              # Konfiguracja produkcyjna reverse proxy Nginx
+│   └── nginx.conf              # Konfiguracja Nginx (zapis logów w formacie Combined)
 │
 ├── targets/
 │   └── vulnerable-app/         # Podatna aplikacja docelowa
-│       ├── app.py              # Aplikacja w Pythonie bez zewnętrznych zależności
+│       ├── app.py              # Aplikacja w czystym Pythonie (biblioteka standardowa)
 │       ├── Dockerfile          # Definicja kontenera Docker
-│       └── requirements.txt    # Wymagania (tylko biblioteka standardowa)
+│       └── requirements.txt    # Brak zewnętrznych zależności
 │
-├── attacks/                    # Moduł symulacji ataków Red Team
-│   ├── exploit_runner.py       # Skrypt automatyzujący wysyłanie ataków
-│   └── payloads.json           # Zestaw przygotowanych ładunków (Jawne vs Evasion)
+├── attacks/                    # Moduł symulacji ataków (Red Team)
+│   ├── exploit_runner.py       # Skrypt automatyzujący wysyłanie payloadów
+│   └── payloads.json           # Zestaw przygotowanych ładunków (jawne vs evasion)
 │
 └── logs/                       # Współdzielony katalog logów
-    └── access.log              # Strumień logów w formacie Nginx Combined Log
+    └── access.log              # Logi dostępowe analizowane przez reguły Blue Team
 ```
 
 ---
 
-### Scenariusze omijania i detekcji
+### Zakres scenariuszy testowych
 
-Zobacz [**`LAB_SCENARIOS.md`**](LAB_SCENARIOS.md), aby poznać szczegółowe instrukcje krok po kroku:
-- **SQL Injection**: Jawne `UNION SELECT` vs zaciemnianie komentarzami `/**/`.
-- **Directory Traversal**: Jawne `../../` vs pojedyncze i podwójne kodowanie URL (`%2e%2e%2f`).
-- **Cross-Site Scripting (XSS)**: Klasyczne znaczniki `<script>` vs procedury obsługi zdarzeń SVG/Body (`<svg/onload=alert(1)>`).
-- **Rekonesans**: Wykrywanie prób pobrania wrażliwych plików (`.env`, `.git/config`, `phpmyadmin`).
-- **Fingerprinting User-Agent**: Rozpoznawanie skanerów automatycznych, takich jak `sqlmap`, `nikto`, `gobuster`.
+Szczegółowy opis testów, przykłady poleceń curl oraz mechanizmy omijania opisano w [**`LAB_SCENARIOS.md`**](LAB_SCENARIOS.md):
+- **SQL Injection**: Standardowe zapytanie `UNION SELECT` vs rozbijanie słów kluczowych komentarzami SQL (`/**/`).
+- **Directory Traversal**: Jawna sekwencja `../../` vs pojedyncze (`%2f`) oraz podwójne (`%252e`) kodowanie URL.
+- **Cross-Site Scripting (XSS)**: Klasyczne znaczniki `<script>` vs procedury obsługi zdarzeń w tagach SVG i Body (`<svg/onload=alert(1)>`).
+- **Rekonesans**: Próby odpytywania wrażliwych plików konfiguracyjnych (`.env`, `.git/config`, `phpmyadmin`).
+- **Identyfikacja narzędzi (User-Agent)**: Wykrywanie skanerów automatycznych (np. `sqlmap`) na podstawie nagłówków żądań HTTP.
 
 ---
 
-### Zastrzeżenie prawne (Disclaimer)
+### Uwagi dotyczące bezpieczeństwa (Disclaimer)
 
-To środowisko laboratoryjne jest przeznaczone wyłącznie do celów edukacyjnych, defensywnych badań nad bezpieczeństwem oraz tworzenia i testowania reguł detekcji. Nie wolno stosować przedstawionych technik ataku przeciwko systemom bez uprzedniej wyraźnej zgody ich właścicieli.
+Projekt został opracowany wyłącznie do celów edukacyjnych, badań nad bezpieczeństwem defensywnym oraz testowania reguł detekcji w kontrolowanym środowisku. Narzędzi ani ładunków testowych nie należy stosować przeciwko systemom bez uprzedniej wyraźnej zgody ich właścicieli.
