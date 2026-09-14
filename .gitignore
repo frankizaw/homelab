@@ -1,0 +1,11 @@
+# Logs & runtime files
+logs/*.log
+logs/*.out
+.lab.pid
+__pycache__/
+*.pyc
+
+# System / IDE
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,21 @@
+services:
+  proxy:
+    image: nginx:alpine
+    container_name: homelab-proxy
+    ports:
+      - "8080:80"
+    volumes:
+      - ./proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./logs:/var/log/nginx
+    depends_on:
+      - target
+    restart: unless-stopped
+
+  target:
+    build:
+      context: ./targets/vulnerable-app
+      dockerfile: Dockerfile
+    container_name: homelab-target
+    volumes:
+      - ./logs:/logs
+    restart: unless-stopped

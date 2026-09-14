@@ -1,0 +1,105 @@
+{
+  "blatant": [
+    {
+      "name": "SQL Injection (Standard Union)",
+      "category": "SQL Injection",
+      "method": "GET",
+      "path": "/products?id=1%20UNION%20SELECT%20null,username,password%20FROM%20users",
+      "expected_detection": true,
+      "description": "Plaintext UNION SELECT attack. Naive regex flags 'union.*select'."
+    },
+    {
+      "name": "Directory Traversal (Plain Dot-Dot-Slash)",
+      "category": "Directory Traversal",
+      "method": "GET",
+      "path": "/download?file=../../../../etc/passwd",
+      "expected_detection": true,
+      "description": "Standard traversal looking for /etc/passwd. Flags on '../' and '/etc/passwd'."
+    },
+    {
+      "name": "Reflected XSS (Classic Script Tag)",
+      "category": "Cross-Site Scripting (XSS)",
+      "method": "GET",
+      "path": "/search?q=<script>alert('pwned')</script>",
+      "expected_detection": true,
+      "description": "Standard script tag XSS. Flags on '<script.*?>'."
+    },
+    {
+      "name": "Sensitive File Probing (.env)",
+      "category": "Sensitive Files / Recon",
+      "method": "GET",
+      "path": "/.env",
+      "expected_detection": true,
+      "description": "Recon probe for environment variable file. Flags on '.env'."
+    },
+    {
+      "name": "Sensitive File Probing (.git)",
+      "category": "Sensitive Files / Recon",
+      "method": "GET",
+      "path": "/.git/config",
+      "expected_detection": true,
+      "description": "Recon probe for git exposure. Flags on '.git'."
+    },
+    {
+      "name": "Admin Portal Recon (phpMyAdmin)",
+      "category": "Sensitive Files / Recon",
+      "method": "GET",
+      "path": "/admin/phpmyadmin/index.php",
+      "expected_detection": true,
+      "description": "Recon probe for database management tools. Flags on 'phpmyadmin'."
+    }
+  ],
+  "evasion": [
+    {
+      "name": "Directory Traversal (URL Encoded Slashes)",
+      "category": "Directory Traversal",
+      "method": "GET",
+      "path": "/download?file=..%2f..%2f..%2f..%2fetc/passwd",
+      "expected_detection": false,
+      "description": "Encodes '/' as '%2f'. Bypasses regex searching for '../' if URL is not decoded first."
+    },
+    {
+      "name": "Directory Traversal (Double URL Encoding)",
+      "category": "Directory Traversal",
+      "method": "GET",
+      "path": "/download?file=%252e%252e%252f%252e%252e%252fetc/passwd",
+      "expected_detection": false,
+      "description": "Double encodes '%2e' into '%252e'. Defeats single-pass URL decoders."
+    },
+    {
+      "name": "SQL Injection (Inline SQL Comment Obfuscation)",
+      "category": "SQL Injection",
+      "method": "GET",
+      "path": "/products?id=1/**/UNION/**/SELECT/**/null,username,password/**/FROM/**/users",
+      "expected_detection": false,
+      "description": "Uses '/**/' comments instead of spaces. May defeat regexes assuming whitespace."
+    },
+    {
+      "name": "XSS (SVG Onload - Non-Script Tag)",
+      "category": "Cross-Site Scripting (XSS)",
+      "method": "GET",
+      "path": "/search?q=<svg/onload=alert(1)>",
+      "expected_detection": false,
+      "description": "Uses SVG event handler without '<script>' tag or 'onerror'. Bypasses specific tag filters."
+    },
+    {
+      "name": "XSS (Body OnPageshow Event)",
+      "category": "Cross-Site Scripting (XSS)",
+      "method": "GET",
+      "path": "/search?q=<body/onpageshow=alert(1)>",
+      "expected_detection": false,
+      "description": "Alternative event handler payload that completely avoids typical regex rules."
+    },
+    {
+      "name": "Automated Scanner Fingerprint (User-Agent sqlmap)",
+      "category": "Scanner Activity",
+      "method": "GET",
+      "path": "/products?id=1",
+      "headers": {
+        "User-Agent": "sqlmap/1.7.11#stable (https://sqlmap.org)"
+      },
+      "expected_detection": false,
+      "description": "Attacker using sqlmap without spoofing User-Agent. Missed if analyzer only checks path."
+    }
+  ]
+}
